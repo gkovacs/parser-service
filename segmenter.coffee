@@ -1,4 +1,20 @@
 child_process = require 'child_process'
+restler = require 'restler'
+querystring = require 'querystring'
+
+portnum = 3555
+
+getUrl = (url, params, callback) ->
+  paramstring = querystring.stringify(params)
+  if url.indexOf('/') == -1
+    url = 'http://localhost:' + portnum + '/' + url
+  if paramstring == ''
+    realurl = url
+  else
+    realurl = url + '?' + paramstring
+  restler.get(realurl).on('complete', (httpgetresponse) ->
+    callback(httpgetresponse)
+  )
 
 parsers = {}
 parsers['zh'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -chinese -gr chn_sm5.gr'])
@@ -15,8 +31,9 @@ if segmenter?
   segmenter.stdout.on('data', (data) ->
     result = data.toString().trim()
     query = result.split(' ').join('').trim()
-    segmenterResponsesNeeded[query](data)
-    delete segmenterResponsesNeeded[query]
+    if segmenterResponsesNeeded[query]?
+      segmenterResponsesNeeded[query](data)
+      delete segmenterResponsesNeeded[query]
     console.log('segstdout: ' + data)
   )
 
@@ -41,7 +58,7 @@ terminals = (s) ->
       current_terminal = []
     else
       current_terminal.push(c)
-  return output.join('')
+  return output.join('').split(' ').join('').trim()
 
 parserResponsesNeeded = {}
 
@@ -70,7 +87,8 @@ app = express()
 
 http = require 'http'
 httpserver = http.createServer(app)
-httpserver.listen(3555);
+
+httpserver.listen(portnum);
 
 app.get('/', (req, res) ->
   res.end 'either segment or parse'
@@ -86,23 +104,36 @@ app.get('/segment', (req,res) ->
     res.end 'need to provide sentence parameter'
 )
 
-app.get('/parse', (req, res) ->
-  sentence = req.query['sentence']
-  if sentence?
-    if (not req.query['lang']?) or req.query['lang'] == 'zh'
-      query = sentence.split(' ').join('').trim()
-      segmenterResponsesNeeded[query] = (segmented) ->
-        parserResponsesNeeded['zh'][query] = (parsed) -> res.end(parsed)
-        parsers['zh'].stdin.write(segmented + '\n')
-      segmenter.stdin.write(query + '\n\n\n\n')
-    else
-      lang = req.query['lang']
-      query = sentence.split(' ').join('').trim()
-      console.log lang
-      console.log query
-      parserResponsesNeeded[lang][query] = (parsed) -> res.end(parsed)
-      parsers[lang].stdin.write(sentence + '\n')
-  else
+app.get '/parseNoSegment', (req, res) ->
+  sentence = req.query.sentence
+  if not sentence?
     res.end 'need to provide sentence parameter'
-)
+    return
+  lang = req.query.lang ? 'en'
+  query = sentence.split(' ').join('').trim()
+  console.log lang
+  console.log query
+  parserResponsesNeeded[lang][query] = (parsed) -> res.end(parsed)
+  parsers[lang].stdin.write(sentence + '\n')
+
+app.get '/parse', (req, res) ->
+  sentence = req.query.sentence
+  if not sentence?
+    res.end 'need to provide sentence parameter'
+    return
+  lang = req.query.lang ? 'en'
+  if lang != 'zh'
+    getUrl 'parseNoSegment', {'lang': 'zh', 'sentence': sentence}, (parsed) ->
+      res.end parsed
+    return
+  else
+    console.log 'sentence is:' + sentence
+    await
+      getUrl 'segment', {'lang': 'zh', 'sentence': sentence}, defer(segmented)
+    console.log 'newly segmented sentence:' + segmented
+    await
+      getUrl 'parseNoSegment', {'lang': 'zh', 'sentence': segmented}, defer(parsed)
+    console.log 'parsed output:' + parsed
+    res.end parsed
+    return
 
