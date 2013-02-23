@@ -98,7 +98,9 @@ app.get('/segment', (req,res) ->
   sentence = req.query['sentence']
   if sentence?
     query = sentence.split(' ').join('').trim()
-    segmenterResponsesNeeded[query] = (segmented) -> res.end(segmented)
+    segmenterResponsesNeeded[query] = (segmented) ->
+      if segmented?
+        res.end(segmented)
     segmenter.stdin.write(query + '\n\n\n\n')
   else
     res.end 'need to provide sentence parameter'
@@ -113,7 +115,9 @@ app.get '/parseNoSegment', (req, res) ->
   query = sentence.split(' ').join('').trim()
   console.log lang
   console.log query
-  parserResponsesNeeded[lang][query] = (parsed) -> res.end(parsed)
+  parserResponsesNeeded[lang][query] = (parsed) ->
+    if parsed?
+      res.end(parsed)
   parsers[lang].stdin.write(sentence + '\n')
 
 app.get '/parse', (req, res) ->
@@ -123,17 +127,20 @@ app.get '/parse', (req, res) ->
     return
   lang = req.query.lang ? 'en'
   if lang != 'zh'
-    getUrl 'parseNoSegment', {'lang': 'zh', 'sentence': sentence}, (parsed) ->
+    if not parsers[lang]?
+      lang = 'zh'
+    getUrl 'parseNoSegment', {'lang': lang, 'sentence': sentence}, (parsed) ->
       res.end parsed
     return
   else
     console.log 'sentence is:' + sentence
     await
-      getUrl 'segment', {'lang': 'zh', 'sentence': sentence}, defer(segmented)
+      getUrl 'segment', {'lang': lang, 'sentence': sentence}, defer(segmented)
     console.log 'newly segmented sentence:' + segmented
     await
-      getUrl 'parseNoSegment', {'lang': 'zh', 'sentence': segmented}, defer(parsed)
+      getUrl 'parseNoSegment', {'lang': lang, 'sentence': segmented}, defer(parsed)
     console.log 'parsed output:' + parsed
-    res.end parsed
+    if parsed?
+      res.end parsed
     return
 
