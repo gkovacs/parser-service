@@ -17,10 +17,10 @@ getUrl = (url, params, callback) ->
   )
 
 parsers = {}
-parsers['zh'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -chinese -gr chn_sm5.gr'])
-parsers['en'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -gr eng_sm6.gr'])
-parsers['fr'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -gr fra_sm5.gr'])
-parsers['de'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -gr ger_sm5.gr'])
+parsers['zh'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -tokenize -chinese -gr chn_sm5.gr'])
+parsers['en'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -tokenize -gr eng_sm6.gr'])
+parsers['fr'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -tokenize -gr fra_sm5.gr'])
+parsers['de'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -tokenize -gr ger_sm5.gr'])
 
 #segmenter = null
 segmenter = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -cp u/nlp/distrib/stanford-segmenter-2012-11-11/seg.jar edu.stanford.nlp.ie.crf.CRFClassifier -sighanCorporaDict u/nlp/distrib/stanford-segmenter-2012-11-11/data -sighanPostProcessing true -loadClassifier u/nlp/distrib/stanford-segmenter-2012-11-11/data/ctb.gz -serDictionary u/nlp/distrib/stanford-segmenter-2012-11-11/data/dict-chris6.ser.gz -testFile /dev/stdin'])
