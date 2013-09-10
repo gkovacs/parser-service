@@ -62,26 +62,27 @@ terminals = (s) ->
 
 parserResponsesNeeded = {}
 
-for lang,parser of parsers
-  parserResponsesNeeded[lang] = []
-  do (lang, parser) ->
-    parser.stdout.on('data', (data) ->
-      result = data.toString().trim()
-      #query = terminals(result)
-      #console.log 'response: query:' + query
-      console.log parserResponsesNeeded[lang]
-      #console.log parserResponsesNeeded[lang][query]
-      #if parserResponsesNeeded[lang][query]?
-      #  parserResponsesNeeded[lang][query](data)
-      #  delete parserResponsesNeeded[lang][query]
-      if parserResponsesNeeded[lang].length > 0
-        curCallback = parserResponsesNeeded[lang].shift()
-        curCallback(result)
-      console.log('parserstdout: ' + result)
-    )
-    parser.stderr.on('data', (data) ->
-      console.log('parserstderr: ' + data)
-    )
+do () ->
+  for lang,parser of parsers
+    parserResponsesNeeded[lang] = []
+    do (lang, parser) ->
+      parser.stdout.on('data', (data) ->
+        result = data.toString().trim()
+        #query = terminals(result)
+        #console.log 'response: query:' + query
+        console.log parserResponsesNeeded[lang]
+        #console.log parserResponsesNeeded[lang][query]
+        #if parserResponsesNeeded[lang][query]?
+        #  parserResponsesNeeded[lang][query](data)
+        #  delete parserResponsesNeeded[lang][query]
+        if parserResponsesNeeded[lang].length > 0
+          curCallback = parserResponsesNeeded[lang].shift()
+          curCallback(result)
+        console.log('parserstdout: ' + result)
+      )
+      parser.stderr.on('data', (data) ->
+        console.log('parserstderr: ' + data)
+      )
 
 #console.log (terminals ' ( (NP (NN cat)) )') + 'end'
 
