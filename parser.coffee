@@ -1,6 +1,7 @@
 child_process = require 'child_process'
 restler = require 'restler'
 querystring = require 'querystring'
+fs = require 'fs'
 
 portnum = 3555
 
@@ -12,18 +13,21 @@ getUrl = (url, params, callback) ->
     realurl = url
   else
     realurl = url + '?' + paramstring
-  restler.get(realurl).on('complete', (httpgetresponse) ->
+  restler.get(realurl).on 'complete', (httpgetresponse) ->
     callback(httpgetresponse)
-  )
+
+stdbuf = 'stdbuf'
+if fs.existsSync '/usr/local/bin/gstdbuf'
+  stdbuf = 'gstdbuf'
 
 parsers = {}
-parsers['zh'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -chinese -gr chn_sm5.gr'])
-parsers['en'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -gr eng_sm6.gr'])
-parsers['fr'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -gr fra_sm5.gr'])
-parsers['de'] = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -gr ger_sm5.gr'])
+parsers['zh'] = child_process.spawn('/bin/sh', ['-c', stdbuf + ' -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -chinese -gr chn_sm5.gr'])
+parsers['en'] = child_process.spawn('/bin/sh', ['-c', stdbuf + ' -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -gr eng_sm6.gr'])
+parsers['fr'] = child_process.spawn('/bin/sh', ['-c', stdbuf + ' -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -gr fra_sm5.gr'])
+parsers['de'] = child_process.spawn('/bin/sh', ['-c', stdbuf + ' -oL cat | java -mx2g -jar BerkeleyParser-1.7.jar -gr ger_sm5.gr'])
 
 #segmenter = null
-segmenter = child_process.spawn('/bin/sh', ['-c', 'stdbuf -oL cat | java -mx2g -cp u/nlp/distrib/stanford-segmenter-2012-11-11/seg.jar edu.stanford.nlp.ie.crf.CRFClassifier -sighanCorporaDict u/nlp/distrib/stanford-segmenter-2012-11-11/data -sighanPostProcessing true -loadClassifier u/nlp/distrib/stanford-segmenter-2012-11-11/data/ctb.gz -serDictionary u/nlp/distrib/stanford-segmenter-2012-11-11/data/dict-chris6.ser.gz -testFile /dev/stdin'])
+segmenter = child_process.spawn('/bin/sh', ['-c', stdbuf + ' -oL cat | java -mx2g -cp u/nlp/distrib/stanford-segmenter-2012-11-11/seg.jar edu.stanford.nlp.ie.crf.CRFClassifier -sighanCorporaDict u/nlp/distrib/stanford-segmenter-2012-11-11/data -sighanPostProcessing true -loadClassifier u/nlp/distrib/stanford-segmenter-2012-11-11/data/ctb.gz -serDictionary u/nlp/distrib/stanford-segmenter-2012-11-11/data/dict-chris6.ser.gz -testFile /dev/stdin'])
 
 segmenterResponsesNeeded = {}
 
@@ -62,11 +66,11 @@ terminals = (s) ->
 
 parserResponsesNeeded = {}
 
-do () ->
+do ->
   for lang,parser of parsers
     parserResponsesNeeded[lang] = []
     do (lang, parser) ->
-      parser.stdout.on('data', (data) ->
+      parser.stdout.on 'data', (data) ->
         result = data.toString().trim()
         #query = terminals(result)
         #console.log 'response: query:' + query
@@ -79,10 +83,8 @@ do () ->
           curCallback = parserResponsesNeeded[lang].shift()
           curCallback(result)
         console.log('parserstdout: ' + result)
-      )
-      parser.stderr.on('data', (data) ->
+      parser.stderr.on 'data', (data) ->
         console.log('parserstderr: ' + data)
-      )
 
 #console.log (terminals ' ( (NP (NN cat)) )') + 'end'
 
@@ -94,11 +96,10 @@ httpserver = http.createServer(app)
 
 httpserver.listen(portnum);
 
-app.get('/', (req, res) ->
+app.get '/', (req, res) ->
   res.end 'either segment or parse'
-)
 
-app.get('/segment', (req,res) ->
+app.get '/segment', (req,res) ->
   sentence = req.query['sentence']
   if sentence?
     query = sentence.split(' ').join('').trim()
@@ -108,7 +109,6 @@ app.get('/segment', (req,res) ->
     segmenter.stdin.write(query + '\n\n\n\n')
   else
     res.end 'need to provide sentence parameter'
-)
 
 app.get '/parseNoSegment', (req, res) ->
   sentence = req.query.sentence
@@ -122,10 +122,9 @@ app.get '/parseNoSegment', (req, res) ->
   #parserResponsesNeeded[lang][query] = (parsed) ->
   #  if parsed?
   #    res.end(parsed)
-  parserResponsesNeeded[lang].push((parsed) ->
+  parserResponsesNeeded[lang].push (parsed) ->
     if parsed?
       res.end(parsed)
-  )
   parsers[lang].stdin.write(sentence + '\n')
 
 app.get '/parse', (req, res) ->
@@ -151,4 +150,3 @@ app.get '/parse', (req, res) ->
     if parsed?
       res.end parsed
     return
-
